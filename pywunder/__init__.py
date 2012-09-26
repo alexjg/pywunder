@@ -1,4 +1,5 @@
 import json
+import logging
 import requests
 
 
@@ -18,11 +19,14 @@ class Forecast(object):
 class Client(object):
 
     def __init__(self, api_key):
+        self.logger = logging.getLogger("pywunder.Client")
         self.api_key = api_key
         self._api_endpoint = "http://api.wunderground.com/api/{0}".format(api_key)
 
     def forecast(self, location):
-        r = requests.get("{0}/q/forecast/{1}.json".format(self._api_endpoint, location))
+        url = "{0}/forecast/q/{1}.json".format(self._api_endpoint, location)
+        self.logger.debug("Requesting forecast data from {0}".format(url))
+        r = requests.get(url)
         data = json.loads(r.content)
 
         # If the response contains a "results" key then the location was ambiguous, see
@@ -34,9 +38,10 @@ class Client(object):
         simple = data["forecast"]["simpleforecast"]
         reverse_txt_days = dict([[day["period"], day] for day in text["forecastday"]])
         reverse_simple_days = dict([[day["period"], day] for day in simple["forecastday"]])
-        result = {}
+        result = []
         for period, day in reverse_simple_days.items():
-            result[period] = Forecast(reverse_txt_days[period]["fcttext_metric"], day)
+            result.append(Forecast(reverse_txt_days[period]["fcttext_metric"], day))
+        result.sort(key=lambda x:x.period)
         return result
 
 
